@@ -34,7 +34,13 @@ export function createUnlitMaterial(name: string, texture: Texture | undefined):
     return unlitMaterial;
 }
 
-export function createBackgroundMaterial(name: string, texture: Texture | undefined): BackgroundMaterial {
+export function createBackgroundMaterial(
+    name: string, 
+    texture: Texture | undefined,
+    options?: {
+        opacityFresnel?: boolean
+    }
+): BackgroundMaterial {
     let backgroundMaterial = new BackgroundMaterial(name);
 
     if(!texture) {
@@ -44,6 +50,7 @@ export function createBackgroundMaterial(name: string, texture: Texture | undefi
 
     backgroundMaterial.diffuseTexture = texture;
     backgroundMaterial.diffuseTexture.hasAlpha = true;
+    backgroundMaterial.opacityFresnel = false;
 
     return backgroundMaterial;
 }
