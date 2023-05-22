@@ -8,7 +8,7 @@ import { createBackgroundMaterial, createColorMaterial, createUnlitMaterial } fr
 import { ButtonFlat } from './ButtonFlat';
 import { ButtonGeometric } from './ButtonGeometric';
 import { Color3, MeshBuilder } from '@babylonjs/core';
-import { createGround, groundVisibility } from './sceneSettings';
+import { createGround, groundVisibility } from './settingsSceneMain';
 
 const app = new App({
     target: document.getElementById('app'),
@@ -17,13 +17,13 @@ const app = new App({
 export default app
 
 window.addEventListener('load', async () => {
-    let mainLevel = new Level("mainLevel", "renderArea", { cameraTarget: new Vector3(0, .25, 0) });
+    let mainLevel = new Level("mainLevel", "renderArea", { cameraTarget: new Vector3(0, .5, 0) });
 
     let loadingManager = new LoadingManager();
-    loadingManager.addContainerTask("OBJ_Model", "/babylon_assets/", "OBJ_Model.glb");
-    loadingManager.addTextureTask("TEX_Ground", "/babylon_assets/TEX_Ground_Light.png");
-    loadingManager.addTextureTask("TEX_Button_Eye", "/babylon_assets/TEX_Button_Eye.png");
-    loadingManager.addTextureTask("TEX_Button_Eye_Hover", "/babylon_assets/TEX_Button_Eye_Hover.png");
+    loadingManager.addContainerTask("OBJ_Model", "/babylon_assets/", "OBJ_Geilomat.glb");
+    loadingManager.addTextureTask("TEX_Ground", "/babylon_assets/TEX_Ground.png");
+    loadingManager.addTextureTask("TEX_Eye", "/babylon_assets/TEX_Eye.png");
+    loadingManager.addTextureTask("TEX_Eye_Hover", "/babylon_assets/TEX_Eye_Hover.png");
 
     await loadingManager.loadAsync();
     if (loadingManager.allSuccessful) {
@@ -36,19 +36,19 @@ window.addEventListener('load', async () => {
             console.log(model.cameraPositions);
 
             setTimeout(() => {
-                mainLevel.animateCameraToPosition(model.cameraPositions[1], { updateLimits: true });
+                mainLevel.animateCameraToPosition(model.cameraPositions[0], { updateLimits: true });
             }, 5000);
         }
 
         let materialGround = createBackgroundMaterial("MAT_Ground", loadingManager.getTextureTaskData("TEX_Ground"));
-        let materialEye = createUnlitMaterial("MAT_Button_Eye", loadingManager.getTextureTaskData("TEX_Button_Eye"));
-        let materialEyeHover = createUnlitMaterial("MAT_Button_Eye_Hover", loadingManager.getTextureTaskData("TEX_Button_Eye_Hover"));
+        let materialEye = createUnlitMaterial("MAT_Camera", loadingManager.getTextureTaskData("TEX_Eye"));
+        let materialEyeHover = createUnlitMaterial("MAT_Button_Eye_Hover", loadingManager.getTextureTaskData("TEX_Eye_Hover"));
 
         let button = new ButtonFlat(
             "buttonEye", 
             mainLevel.scene, 
             .1,
-            new Vector3(0, 1, 0),
+            new Vector3(0, 1.5, 0),
             materialEye,
             materialEyeHover
         );
@@ -64,7 +64,7 @@ window.addEventListener('load', async () => {
         mainLevel.debug();
 
         if(createGround) {
-            let ground = MeshBuilder.CreateGround("OBJ_Ground", {width: 16, height: 16}); 
+            let ground = MeshBuilder.CreateGround("OBJ_Ground", {width: 8, height: 8}); 
             ground.material = materialGround;
             ground.visibility = groundVisibility;
         }

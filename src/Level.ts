@@ -1,24 +1,24 @@
 import { Animation } from "@babylonjs/core/Animations/animation";
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import "@babylonjs/core/Debug/debugLayer";
 import { Engine } from "@babylonjs/core/Engines/engine";
-import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
+import { CubeTexture } from "@babylonjs/core/Materials/Textures/cubeTexture";
+import { ImageProcessingConfiguration } from "@babylonjs/core/Materials/imageProcessingConfiguration";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
+import "@babylonjs/inspector";
+import { backgroundColor, createGround, CAM_RADIUS_MAX, CAM_RADIUS_MIN } from "./settingsSceneMain";
 import { animationEasingFunction, animationFramerate } from "./settings";
 import type { Polar3 } from "./types";
-import "@babylonjs/core/Debug/debugLayer";
-import "@babylonjs/inspector";
-import { CubeTexture } from "@babylonjs/core/Materials/Textures/cubeTexture";
-import { Tools } from "@babylonjs/core/Misc/tools";
-import { ImageProcessingConfiguration } from "@babylonjs/core/Materials/imageProcessingConfiguration";
-import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
-import { backgroundColor, createGround } from "./sceneSettings";
 
 export class Level {
     private _name: string;
     private _renderArea: HTMLCanvasElement;
     private _engine: Engine;
     private _scene: Scene;
+
+    // Does this need to be here? :)
     private _camera: ArcRotateCamera;
 
     constructor(
@@ -34,14 +34,15 @@ export class Level {
         this._engine = new Engine(
             this._renderArea,
             true,
-            undefined,
-            // true
+            undefined
         );
         this._scene = new Scene(this._engine);
         this._scene.clearColor = backgroundColor;
 
+        // For PBR materials: 
         let hdrTexture = CubeTexture.CreateFromPrefilteredData("/babylon_assets/environment.env", this._scene);
-        hdrTexture.setReflectionTextureMatrix(Matrix.RotationY(Tools.ToRadians(90)));
+        hdrTexture.setReflectionTextureMatrix(Matrix.RotationY(0));
+
         this._scene.environmentTexture = hdrTexture;
 
         this._scene.imageProcessingConfiguration.exposure = 1;
@@ -86,13 +87,13 @@ export class Level {
             this._scene,
             true
         );
-        camera.fov = Math.PI / 4;
+        camera.fov = 1; // Math.PI / 4;
 
         camera.minZ = 0.01;
         camera.maxZ = 100;
 
-        camera.lowerRadiusLimit = 3;
-        camera.upperRadiusLimit = 8;
+        camera.lowerRadiusLimit = CAM_RADIUS_MIN;
+        camera.upperRadiusLimit = CAM_RADIUS_MAX;
 
         camera.upperBetaLimit = Math.PI / 2;
 

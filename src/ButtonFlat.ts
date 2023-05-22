@@ -6,7 +6,8 @@ import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
-import { distanceVisible, distanceFullyVisible } from "./sceneSettings";
+import { distanceVisible, distanceFullyVisible } from "./settingsSceneMain";
+import { smoothstep } from "./mathFunctions";
 
 export class ButtonFlat {
     private _name: string;
@@ -37,31 +38,41 @@ export class ButtonFlat {
         this._meshBase.billboardMode = Mesh.BILLBOARDMODE_ALL;
 
         this._meshBase.material = this._material;
-        this.distanceVisibility();
+
+        this.activateDistanceVisibility();
         this.registerDefaultHoverActions();
     }
 
-    private distanceVisibility() {
+    private activateDistanceVisibility(): void {
         if(!this._scene.activeCamera) {
+            console.log("no active camera found");
+            
             return;
         }
 
-        let difference = distanceVisible - distanceFullyVisible; 
-
         this._scene.activeCamera.onViewMatrixChangedObservable.add(() => {
-            if(!this._scene._activeCamera) {
-                return;
-            }
-            let distance = this._scene._activeCamera.position.subtract(this._meshBase.position).length();
-            let output = (distance - distanceFullyVisible) / (distanceVisible - distanceFullyVisible)
-            this._meshBase.visibility = 1 - output;
-
-            // console.log(distance);
-            // console.log(this._meshBase.visibility);
-            
-            
+            this.distanceVisibility();
         });
+    } 
 
+    private distanceVisibility(): void {
+        if(!this._scene._activeCamera) {
+            return;
+        }
+        let distance = this._scene._activeCamera.position.subtract(this._meshBase.position).length();
+        let output = Math.min(
+            Math.max(
+                (distance - distanceFullyVisible) / (distanceVisible - distanceFullyVisible), 
+                0
+            ), 
+            1
+        );
+        this._meshBase.visibility = smoothstep(1 - output);
+        if(this._meshBase.visibility == 0) {
+            this._meshBase.setEnabled(false);
+        } else {
+            this._meshBase.setEnabled(true);
+        }
     }
 
     private registerDefaultHoverActions(): void {
@@ -70,8 +81,7 @@ export class ButtonFlat {
             new ExecuteCodeAction(
                 ActionManager.OnPointerOverTrigger,
                 () => {
-                    console.log("such wowie");
-                    // fadeIn(this._meshHover, .1);
+                    this._meshBase.visibility = 1;
                     this._meshBase.material = this._materialHover;
                 }
             )
@@ -80,8 +90,7 @@ export class ButtonFlat {
             new ExecuteCodeAction(
                 ActionManager.OnPointerOutTrigger,
                 () => {
-                    console.log("such wowie");
-                    // fadeOut(this._meshHover, .1);
+                    this.distanceVisibility();
                     this._meshBase.material = this._material;
                 }
             )

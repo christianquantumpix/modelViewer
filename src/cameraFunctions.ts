@@ -34,6 +34,13 @@ export function restrictPolar3ToCameraLimits(
     return { longitude, latitude, radius }
 }
 
+/**
+ * Updates an ArcRotateCameras limits from a position in polar coordinates. 
+ * Sets the limits first, because they are nullable. 
+ * 
+ * @param camera The camera that is to be updated. 
+ * @param positionPolar The position to update from in polar coordinates.  
+ */
 export function updateCameraLimitsFromPolar3(
     camera: ArcRotateCamera, 
     positionPolar: Polar3
@@ -42,24 +49,20 @@ export function updateCameraLimitsFromPolar3(
     let latitude = positionPolar.latitude;
     let radius = positionPolar.radius;
 
-    if(camera.lowerRadiusLimit) {
-        camera.lowerRadiusLimit = camera.lowerRadiusLimit < radius ? camera.lowerRadiusLimit : radius;
-    }
-    if(camera.upperRadiusLimit) {
-        camera.upperRadiusLimit = camera.upperRadiusLimit > radius ? camera.upperRadiusLimit : radius;
-    }
-    if(camera.lowerAlphaLimit) {
-        camera.lowerAlphaLimit = camera.lowerAlphaLimit < longitude ? camera.lowerAlphaLimit : longitude;
-    }
-    if(camera.upperAlphaLimit) {
-        camera.upperAlphaLimit = camera.upperAlphaLimit > longitude ? camera.upperAlphaLimit : longitude;
-    }
-    if(camera.lowerBetaLimit) {
-        camera.lowerBetaLimit = camera.lowerBetaLimit < latitude ? camera.lowerBetaLimit : latitude;
-    }
-    if(camera.upperBetaLimit) {
-        camera.upperBetaLimit = camera.upperBetaLimit > latitude ? camera.upperBetaLimit : latitude;
-    }
+    camera.lowerRadiusLimit = 0;
+    camera.lowerRadiusLimit = camera.lowerRadiusLimit < radius ? camera.lowerRadiusLimit : radius;
+    camera.upperRadiusLimit = Number.MAX_VALUE;
+    camera.upperRadiusLimit = camera.upperRadiusLimit > radius ? camera.upperRadiusLimit : radius;
+
+    camera.lowerAlphaLimit = 0;
+    camera.lowerAlphaLimit = camera.lowerAlphaLimit < longitude ? camera.lowerAlphaLimit : longitude;
+    camera.upperAlphaLimit = Number.MAX_VALUE;
+    camera.upperAlphaLimit = camera.upperAlphaLimit > longitude ? camera.upperAlphaLimit : longitude;
+
+    camera.lowerBetaLimit = 0;
+    camera.lowerBetaLimit = camera.lowerBetaLimit < latitude ? camera.lowerBetaLimit : latitude;
+    camera.upperBetaLimit = Number.MAX_VALUE;
+    camera.upperBetaLimit = camera.upperBetaLimit > latitude ? camera.upperBetaLimit : latitude;
 }
 
 export function getClosestPolar3(positionPolar: Polar3, camera: ArcRotateCamera) {

@@ -1,9 +1,11 @@
 
 import type { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import type { Scene } from "@babylonjs/core/scene";
+import { valueEqual } from "./mathFunctions";
 
 export class Model {
     private _name: string;
@@ -23,10 +25,19 @@ export class Model {
 
     private init(): void {
         for(let camera of this._model.cameras) {
+            // this._cameraPositions.push(camera.globalPosition);
+            console.log(camera.name);
+            
+
+
             if(camera.parent) {
+                console.log("fucksht parent");
+                
                 let parent = camera.parent as TransformNode;
                 this._cameraPositions.push(parent.position);
             } else {
+                console.log("ndfjh");
+                
                 this._cameraPositions.push(camera.position);
             }
             
@@ -44,6 +55,15 @@ export class Model {
                 if(material.clearCoat) {
                     // console.log("wowie woohwah");
                     // console.log(material.clearCoat);
+                    
+                    
+                }
+
+                if(material.emissiveIntensity > 0 && !valueEqual(material.emissiveColor, Color3.BlackReadOnly)) {
+                    console.log(material.emissiveColor);
+                    console.log(material.emissiveIntensity);
+                    
+                    console.log("Emissive material detected: " + material.name);
                     
                     
                 }
