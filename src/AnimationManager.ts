@@ -1,9 +1,9 @@
 import { Animation } from "@babylonjs/core/Animations/animation";
-import { animationEasingFunction, animationFramerate } from "./settings";
+import { animationDurationSeconds, animationEasingFunction, animationFramerate } from "./settings";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 
 export function fadeIn(mesh: AbstractMesh, durationS?: number, onEnded?: () => void): void {
-    let duration = typeof durationS != "undefined" ? durationS * animationFramerate : animationFramerate;
+    let duration = typeof durationS != "undefined" ? durationS * animationFramerate : animationDurationSeconds * animationFramerate;
 
     Animation.CreateAndStartAnimation(
         "alphaAnimation",
@@ -20,7 +20,7 @@ export function fadeIn(mesh: AbstractMesh, durationS?: number, onEnded?: () => v
 }
 
 export function fadeOut(mesh: AbstractMesh, durationS?: number, onEnded?: () => void): void {
-    let duration = typeof durationS != "undefined" ? durationS * animationFramerate : animationFramerate;
+    let duration = typeof durationS != "undefined" ? durationS * animationFramerate : animationDurationSeconds * animationFramerate;
 
     Animation.CreateAndStartAnimation(
         "alphaAnimation",

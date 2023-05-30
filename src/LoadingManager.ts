@@ -1,7 +1,9 @@
-import { AssetContainer, AssetsManager, AssetTaskState, BinaryFileAssetTask, ContainerAssetTask, Texture, TextureAssetTask } from "@babylonjs/core";
+import { AssetContainer, AssetsManager, AssetTaskState, BinaryFileAssetTask, ContainerAssetTask, Scene, Texture, TextureAssetTask } from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
 
 export class LoadingManager {
+    private _scene: Scene;
+    
     private _assetsManager: AssetsManager;
 
     private _containers: Map<string, ContainerAssetTask>;
@@ -10,8 +12,10 @@ export class LoadingManager {
 
     private _allSuccessful: boolean;
 
-    constructor() {
-        this._assetsManager = new AssetsManager();
+    constructor(scene: Scene) {
+        this._scene = scene;
+
+        this._assetsManager = new AssetsManager(this._scene);
         this._assetsManager.useDefaultLoadingScreen = false;
 
         this._containers = new Map();

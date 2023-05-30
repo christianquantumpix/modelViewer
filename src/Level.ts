@@ -1,16 +1,19 @@
-import { Animation } from "@babylonjs/core/Animations/animation";
+import type { Material } from "@babylonjs/core";
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import "@babylonjs/core/Debug/debugLayer";
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { CubeTexture } from "@babylonjs/core/Materials/Textures/cubeTexture";
 import { ImageProcessingConfiguration } from "@babylonjs/core/Materials/imageProcessingConfiguration";
+import { Color4 } from "@babylonjs/core/Maths/math.color";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/inspector";
-import { backgroundColor, createGround, CAM_RADIUS_MAX, CAM_RADIUS_MIN } from "./settingsSceneMain";
-import { animationEasingFunction, animationFramerate } from "./settings";
-import type { Polar3 } from "./types";
+import { assetLoadingException, unknownLevelMaterialException } from "./Exception";
+import { LoadingManager } from "./LoadingManager";
+import { createBackgroundMaterial, createUnlitMaterial } from "./MaterialFactory";
+import { MaterialType, type LevelConfiguration, type LoaderTask } from "./types";
 
 export class Level {
     private _name: string;
@@ -18,51 +21,144 @@ export class Level {
     private _engine: Engine;
     private _scene: Scene;
 
+    private _configuration: LevelConfiguration | null;
+
+    private _loadingManager: LoadingManager;
+    private _loaderTasks: Array<LoaderTask>;
+
+    private _materials: Map<string, Material>
+
     // Does this need to be here? :)
     private _camera: ArcRotateCamera;
+
+    private static defaultBackgroundColor = new Color4(.1, .1, .1, 1);
+    private static defaultCameraTarget = new Vector3(0, 0, 0);
+    private static defaultCameraRadiusMin = 0;
+    private static defaultCameraRadiusMax = Number.MAX_VALUE;
 
     constructor(
         name: string,
         renderAreaId: string,
-        options?: {
-            cameraTarget?: Vector3
-        }
+        configuration?: LevelConfiguration
     ) {
         this._name = name;
         this._renderArea = document.getElementById(renderAreaId) as HTMLCanvasElement;
+        this._configuration = configuration ?? null;
 
         this._engine = new Engine(
             this._renderArea,
-            true,
-            undefined
+            true
         );
         this._scene = new Scene(this._engine);
-        this._scene.clearColor = backgroundColor;
 
+        // Does this really belong here? Unfortunately with the current architecture this is bound to a level. 
+        this._loadingManager = new LoadingManager(this._scene);
+
+        if (this._configuration?.backgroundColor) {
+            this.setSceneClearColor(this._configuration.backgroundColor);
+        } else {
+            this.setSceneClearColor(Level.defaultBackgroundColor);
+        }
+
+        // Is there any good way to error handle this?
         // For PBR materials: 
         let hdrTexture = CubeTexture.CreateFromPrefilteredData("/babylon_assets/environment.env", this._scene);
         hdrTexture.setReflectionTextureMatrix(Matrix.RotationY(0));
-
         this._scene.environmentTexture = hdrTexture;
 
         this._scene.imageProcessingConfiguration.exposure = 1;
         this._scene.imageProcessingConfiguration.toneMappingEnabled = true;
         this._scene.imageProcessingConfiguration.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES;
 
+        this._materials = new Map();
+
         // Extend later by allowing different kinds of cameras as specified in options. 
-        this._camera = this.setupArcRotateCamera(options?.cameraTarget);
+        this._camera = this.setupArcRotateCamera(this._configuration?.cameraTarget ?? Level.defaultCameraTarget);
 
-
+        // That doesn't belong here obviously. 
         var light = new DirectionalLight("light1", new Vector3(0, -1, 0), this._scene);
         light.intensity = 4;
 
+        if (configuration?.loaderTasks) {
+            this.addLoaderTasks(configuration.loaderTasks);
+        }
+        this._loaderTasks = configuration?.loaderTasks || [];
+
         this.autoResize();
         this.runRenderLoop();
+    }
 
-        if(createGround) {
-            console.log("me should create ground");
-            
+    // This shold be inside of the actual loading  manager. 
+    private addLoaderTasks(loaderTasks: Array<LoaderTask>) {
+        for (let loaderTask of loaderTasks) {
+            // Ugly hacky way to distinguish
+            if ("url" in loaderTask) {
+                this._loadingManager.addTextureTask(loaderTask.uId, loaderTask.url);
+            } else {
+                this._loadingManager.addContainerTask(
+                    loaderTask.uId,
+                    loaderTask.path,
+                    loaderTask.filename
+                );
+            }
         }
+    }
+
+    public async init(): Promise<void> {
+        await this._loadingManager.loadAsync();
+        if (!this._loadingManager.allSuccessful) {
+            throw assetLoadingException;
+        } else {
+            this.setupLevelMaterials();
+            if (this._configuration?.createGround) {
+                this.createGround(8, 1);
+            }
+        }
+    }
+
+    private setupLevelMaterials(): void {
+        if (!this._configuration?.materials) {
+            return;
+        } else {
+            for (let materialConfig of this._configuration.materials) {
+                console.log("MATERIAL");
+                console.log(materialConfig);
+                let material;
+                switch (materialConfig.type) {
+                    case MaterialType.BackgroundMaterial:
+                        material = createBackgroundMaterial(
+                            materialConfig.uId, 
+                            this._scene,
+                            this._loadingManager.getTextureTaskData(materialConfig.textureId)
+                        );
+                        this._materials.set(materialConfig.uId, material);
+                        break;
+                    case MaterialType.UnlitMaterial:
+                        material = createUnlitMaterial(
+                            materialConfig.uId,
+                            this._scene,
+                            this._loadingManager.getTextureTaskData(materialConfig.textureId)
+                        );
+                        this._materials.set(materialConfig.uId, material);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+
+    private createGround(size: number, visibility: number) {
+        let ground = MeshBuilder.CreateGround("OBJ_Ground", { width: size, height: size }, this._scene);
+        let material = this._materials.get("MAT_Ground");
+
+        if(material) {
+            ground.material = material;
+        } else {
+            throw unknownLevelMaterialException;
+        }
+
+        ground.visibility = visibility;
     }
 
     private autoResize(): void {
@@ -75,6 +171,16 @@ export class Level {
         this._engine.runRenderLoop(() => {
             this._scene.render();
         });
+    }
+
+    public setSceneClearColor(color: Color4 | string) {
+        if (typeof color == "string") {
+            this._scene.clearColor = Color4.FromHexString(color);
+        } else if (color) {
+            this._scene.clearColor = color;
+        } else {
+            this._scene.clearColor = Level.defaultBackgroundColor;
+        }
     }
 
     private setupArcRotateCamera(target?: Vector3): ArcRotateCamera {
@@ -92,8 +198,8 @@ export class Level {
         camera.minZ = 0.01;
         camera.maxZ = 100;
 
-        camera.lowerRadiusLimit = CAM_RADIUS_MIN;
-        camera.upperRadiusLimit = CAM_RADIUS_MAX;
+        camera.lowerRadiusLimit = this._configuration?.cameraRadiusMin ?? Level.defaultCameraRadiusMin;
+        camera.upperRadiusLimit = this._configuration?.cameraRadiusMax ?? Level.defaultCameraRadiusMax;
 
         camera.upperBetaLimit = Math.PI / 2;
 
@@ -111,174 +217,6 @@ export class Level {
 
     public loadModel(): void {
 
-    }
-
-    public restrictPolar3ToCameraLimits(
-        positionPolar: Polar3,
-        camera: ArcRotateCamera
-    ): Polar3 {
-        let longitude = positionPolar.longitude;
-        let latitude = positionPolar.latitude;
-        let radius = positionPolar.radius;
-
-        if (camera.lowerRadiusLimit) {
-            radius = radius > camera.lowerRadiusLimit ? radius : camera.lowerRadiusLimit;
-        }
-        if (camera.upperRadiusLimit) {
-            radius = radius < camera.upperRadiusLimit ? radius : camera.upperRadiusLimit;
-        }
-        if (camera.lowerAlphaLimit) {
-            longitude = longitude > camera.lowerAlphaLimit ? longitude : camera.lowerAlphaLimit;
-        }
-        if (camera.upperAlphaLimit) {
-            longitude = longitude < camera.upperAlphaLimit ? longitude : camera.upperAlphaLimit;
-        }
-        if (camera.lowerBetaLimit) {
-            latitude = latitude > camera.lowerBetaLimit ? latitude : camera.lowerBetaLimit;
-        }
-        if (camera.upperBetaLimit) {
-            latitude = latitude < camera.upperBetaLimit ? latitude : camera.upperBetaLimit;
-        }
-
-        return { longitude, latitude, radius }
-    }
-
-    public updateCameraLimitsFromPolar3(
-        camera: ArcRotateCamera, 
-        positionPolar: Polar3
-    ): void {
-        let longitude = positionPolar.longitude;
-        let latitude = positionPolar.latitude;
-        let radius = positionPolar.radius;
-
-        if(camera.lowerRadiusLimit) {
-            camera.lowerRadiusLimit = camera.lowerRadiusLimit < radius ? camera.lowerRadiusLimit : radius;
-        }
-        if(camera.upperRadiusLimit) {
-            camera.upperRadiusLimit = camera.upperRadiusLimit > radius ? camera.upperRadiusLimit : radius;
-        }
-        if(camera.lowerAlphaLimit) {
-            camera.lowerAlphaLimit = camera.lowerAlphaLimit < longitude ? camera.lowerAlphaLimit : longitude;
-        }
-        if(camera.upperAlphaLimit) {
-            camera.upperAlphaLimit = camera.upperAlphaLimit > longitude ? camera.upperAlphaLimit : longitude;
-        }
-        if(camera.lowerBetaLimit) {
-            camera.lowerBetaLimit = camera.lowerBetaLimit < latitude ? camera.lowerBetaLimit : latitude;
-        }
-        if(camera.upperBetaLimit) {
-            camera.upperBetaLimit = camera.upperBetaLimit > latitude ? camera.upperBetaLimit : latitude;
-        }
-    }
-
-    public getClosestPolar3(positionPolar: Polar3, camera: ArcRotateCamera) {
-        let alphaMod2Pi = camera.alpha % (2 * Math.PI);
-
-        // The full rotations stored in the cameras alpha in radians €(-infinity, infinity)
-        let fullRotations = camera.alpha >= 0 ? camera.alpha - alphaMod2Pi : camera.alpha + alphaMod2Pi;
-        // Distance from the camera rotation to the target rotation. 
-        let distance = Math.abs(positionPolar.longitude - alphaMod2Pi);
-        // If the distance is bigger than pi, we must rotate the other direction to rotate on the shortest path: 
-        let addend = (2 * Math.PI - positionPolar.longitude) * (distance >= Math.PI ? 1 : -1);
-
-        let longitude = fullRotations + (distance < Math.PI ? positionPolar.longitude : addend);
-        
-        // Latitude and radius stay untouched
-        let latitude = positionPolar.latitude;
-        let radius = positionPolar.radius;
-
-        return {longitude, latitude, radius};
-    }
-
-    public animateCameraToPosition(
-        position: Vector3,
-        options?: {
-            callback?: () => void,
-            updateLimits?: boolean
-        }
-    ): void {
-        let positionPolar = this.cartesianToCameraPolar(position);
-
-        if(options?.updateLimits) {
-            this.updateCameraLimitsFromPolar3(this._camera, positionPolar);
-        } else {
-            positionPolar = this.restrictPolar3ToCameraLimits(positionPolar, this._camera);
-        }
-
-        positionPolar = this.getClosestPolar3(positionPolar, this._camera);
-        this._camera.detachControl();
-
-        this.animateCameraToAlpha(positionPolar.longitude);
-        this.animateCameraToBeta(positionPolar.latitude);
-        this.animateCameraToRadius(positionPolar.radius, () => {
-            if(options?.callback) {
-                options.callback();
-            }
-            this._camera?.attachControl();
-        });
-    }
-
-    public animateCameraToAlpha(alpha: number, onEnded?: () => void): void {
-        Animation.CreateAndStartAnimation(
-            "alphaAnimation",
-            this._camera,
-            "alpha",
-            animationFramerate,
-            30,
-            this._camera.alpha,
-            alpha,
-            Animation.ANIMATIONLOOPMODE_CONSTANT,
-            animationEasingFunction,
-            onEnded || undefined
-        );
-    }
-
-    public animateCameraToBeta(beta: number, onEnded?: () => void): void {
-        Animation.CreateAndStartAnimation(
-            "betaAnimation",
-            this._camera,
-            "beta",
-            animationFramerate,
-            30,
-            this._camera.beta,
-            beta,
-            Animation.ANIMATIONLOOPMODE_CONSTANT,
-            animationEasingFunction,
-            onEnded || undefined
-        );
-    }
-
-    public animateCameraToRadius(radius: number, onEnded?: () => void): void {
-        Animation.CreateAndStartAnimation(
-            "radiusAnimation",
-            this._camera,
-            "radius",
-            animationFramerate,
-            30,
-            this._camera.radius,
-            radius,
-            Animation.ANIMATIONLOOPMODE_CONSTANT,
-            animationEasingFunction,
-            onEnded || undefined
-        );
-    }
-
-    public cartesianToCameraPolar(position: Vector3): Polar3 {
-        let x = position.x;
-        let y = position.y;
-        let z = position.z;
-
-        let radius = Math.sqrt(x * x + y * y + z * z);
-        // The angle for longitude mesuring starts counterclockwise at the -x direction. 
-        // Therefore if x is bigger or equal to zero the angle must be offset by half a rotation.
-        let longitude = x >= 0 ? -Math.atan(z / -x) - Math.PI : Math.atan(z / -x);
-        // We want the cameras up vector to point in the -z direction when at (0, x, 0) with 0 € [0, infinity);
-        if (x == 0) {
-            longitude = z >= 0 ? Math.PI / 2 : -Math.PI / 2;
-        }
-        let latitude = Math.acos(y / radius) || 0;
-
-        return { longitude, latitude, radius };
     }
 
     public debug(): void {

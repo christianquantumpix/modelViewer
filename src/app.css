@@ -19,6 +19,11 @@
   z-index: 0;
 }
 
+#renderAreaModal {
+  height: 100%;
+  width: 100%;
+}
+
 .overlay {
   position: absolute;
   z-index: 1;

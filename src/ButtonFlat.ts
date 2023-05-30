@@ -6,8 +6,8 @@ import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
-import { distanceVisible, distanceFullyVisible } from "./settingsSceneMain";
 import { smoothstep } from "./mathFunctions";
+import { tessellationCircle } from "./settings";
 
 export class ButtonFlat {
     private _name: string;
@@ -18,13 +18,18 @@ export class ButtonFlat {
     private _material: Material;
     private _materialHover: Material;
 
+    private _distanceVisible: number;
+    private _distanceFullyVisible: number;
+
     constructor(
         name: string,
         scene: Scene,
         size: number,
         position: Vector3,
         material: Material,
-        materialHover: Material
+        materialHover: Material,
+        distanceVisible: number,
+        distanceFullyVisible: number
     ) {
         this._name = name;
         this._scene = scene;
@@ -32,21 +37,22 @@ export class ButtonFlat {
         this._material = material;
         this._materialHover = materialHover;
 
-        this._meshBase = MeshBuilder.CreateDisc(this._name, {radius: size, tessellation: 64});
+        this._distanceVisible = distanceVisible;
+        this._distanceFullyVisible = distanceFullyVisible;
+
+        this._meshBase = MeshBuilder.CreateDisc(this._name, {radius: size, tessellation: tessellationCircle});
         this._meshBase.position = position;
 
         this._meshBase.billboardMode = Mesh.BILLBOARDMODE_ALL;
 
         this._meshBase.material = this._material;
 
-        this.activateDistanceVisibility();
         this.registerDefaultHoverActions();
+        this.activateDistanceVisibility();
     }
 
     private activateDistanceVisibility(): void {
         if(!this._scene.activeCamera) {
-            console.log("no active camera found");
-            
             return;
         }
 
@@ -59,10 +65,11 @@ export class ButtonFlat {
         if(!this._scene._activeCamera) {
             return;
         }
+
         let distance = this._scene._activeCamera.position.subtract(this._meshBase.position).length();
         let output = Math.min(
             Math.max(
-                (distance - distanceFullyVisible) / (distanceVisible - distanceFullyVisible), 
+                (distance - this._distanceFullyVisible) / (this._distanceVisible - this._distanceFullyVisible), 
                 0
             ), 
             1
