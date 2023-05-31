@@ -8,7 +8,7 @@ export type Polar3 = {
     radius: number
 }
 
-export type LevelConfiguration = {
+export type LevelConfig = {
     backgroundColor: Color4 | string,
     createGround: boolean,
     groundVisibility: number,

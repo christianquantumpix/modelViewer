@@ -1,6 +1,5 @@
 export function smoothstep(input: number): number {
-    let output = Math.min(Math.max(-2 * input * input * input + 3 * input * input, 0), 1);
-    return output;
+    return Math.min(Math.max(-2 * input * input * input + 3 * input * input, 0), 1);
 }
 
 export function valueEqual(object1: any, object2: any) {

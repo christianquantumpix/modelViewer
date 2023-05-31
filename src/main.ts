@@ -6,7 +6,7 @@ import { LoadingManager } from './LoadingManager';
 import { createUnlitMaterial } from './MaterialFactory';
 import { Model } from './Model';
 import './app.css';
-import { levelPrimarySettings, levelSecondarySettings } from './settings';
+import { levelPrimaryConfig, levelSecondaryConfig } from './settings';
 
 const app = new App({
     target: document.getElementById('app'),
@@ -22,34 +22,34 @@ window.addEventListener('load', async () => {
 async function loadContent() {
     // For some super obscure reason the babylon asset loading system needs an existing babylon scene 
     // to load assets properly. So level instantiation needs to happen here. 
-    let levelPrimary = new Level("levelPrimary", "renderAreaModal", levelPrimarySettings);
-    let levelSecondary = new Level("levelSecondary", "renderArea", levelSecondarySettings);
+    let levelPrimary = new Level("levelPrimary", "renderAreaModal", levelPrimaryConfig);
+    let levelSecondary = new Level("levelSecondary", "renderArea", levelSecondaryConfig);
     await levelPrimary.init()
     await levelSecondary.init()
     
-    let loadingManagerPrimary = new LoadingManager(levelPrimary.scene);
-    loadingManagerPrimary.addContainerTask("OBJ_Test", "/babylon_assets/", "OBJ_Test.glb");
+    // let loadingManagerPrimary = new LoadingManager(levelPrimary.scene);
+    // loadingManagerPrimary.addContainerTask("OBJ_Test", "/babylon_assets/", "OBJ_Test.glb");
 
-    await loadingManagerPrimary.loadAsync();
+    // await loadingManagerPrimary.loadAsync();
     
-    if (loadingManagerPrimary.allSuccessful) {
-        console.log("loading worked");
+    // if (loadingManagerPrimary.allSuccessful) {
+    //     console.log("loading worked");
         
-        populateLevelPrimary(loadingManagerPrimary, levelPrimary);
-    }
+    //     populateLevelPrimary(loadingManagerPrimary, levelPrimary);
+    // }
 
-    let loadingManagerSecondary = new LoadingManager(levelSecondary.scene);
+    // let loadingManagerSecondary = new LoadingManager(levelSecondary.scene);
 
-    loadingManagerSecondary.addTextureTask("TEX_Ground", "/babylon_assets/TEX_Ground.png");
-    loadingManagerSecondary.addTextureTask("TEX_Eye", "/babylon_assets/TEX_Eye.png");
-    loadingManagerSecondary.addTextureTask("TEX_Eye_Hover", "/babylon_assets/TEX_Eye_Hover.png");
+    // loadingManagerSecondary.addTextureTask("TEX_Ground", "/babylon_assets/TEX_Ground.png");
+    // loadingManagerSecondary.addTextureTask("TEX_Eye", "/babylon_assets/TEX_Eye.png");
+    // loadingManagerSecondary.addTextureTask("TEX_Eye_Hover", "/babylon_assets/TEX_Eye_Hover.png");
 
-    await loadingManagerSecondary.loadAsync();
+    // await loadingManagerSecondary.loadAsync();
 
-    if(loadingManagerSecondary.allSuccessful) {
-        console.log("Loadin of secondary assets also worked");
-        populateLevelSecondary(loadingManagerSecondary, levelSecondary);
-    }
+    // if(loadingManagerSecondary.allSuccessful) {
+    //     console.log("Loadin of secondary assets also worked");
+    //     populateLevelSecondary(loadingManagerSecondary, levelSecondary);
+    // }
 }
 
 function populateLevelPrimary(loadingManager: LoadingManager, levelPrimary: Level) {

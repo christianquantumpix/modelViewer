@@ -13,67 +13,58 @@ import "@babylonjs/inspector";
 import { assetLoadingException, unknownLevelMaterialException } from "./Exception";
 import { LoadingManager } from "./LoadingManager";
 import { createBackgroundMaterial, createUnlitMaterial } from "./MaterialFactory";
-import { MaterialType, type LevelConfiguration, type LoaderTask } from "./types";
+import { MaterialType, type LevelConfig, type LoaderTask } from "./types";
+import { levelDefaultConfig } from "./settings";
 
 export class Level {
     private _name: string;
     private _renderArea: HTMLCanvasElement;
     private _engine: Engine;
     private _scene: Scene;
-
-    private _configuration: LevelConfiguration | null;
-
+    // Giving the possibility to have a default level config. 
+    private _configuration: LevelConfig;
+    // ToDo: Find better name. 
     private _loadingManager: LoadingManager;
     private _loaderTasks: Array<LoaderTask>;
-
+    // Levels shared material library
     private _materials: Map<string, Material>
 
     // Does this need to be here? :)
     private _camera: ArcRotateCamera;
 
-    private static defaultBackgroundColor = new Color4(.1, .1, .1, 1);
-    private static defaultCameraTarget = new Vector3(0, 0, 0);
-    private static defaultCameraRadiusMin = 0;
-    private static defaultCameraRadiusMax = Number.MAX_VALUE;
-
     constructor(
         name: string,
         renderAreaId: string,
-        configuration?: LevelConfiguration
+        configuration?: LevelConfig
     ) {
         this._name = name;
+
+        // Here something could go wrong, because the ID might not correspond to a canvas element. 
+        let renderArea = document.getElementById(renderAreaId);
+        console.log(renderArea instanceof HTMLCanvasElement);
+        
         this._renderArea = document.getElementById(renderAreaId) as HTMLCanvasElement;
-        this._configuration = configuration ?? null;
+        this._configuration = configuration || levelDefaultConfig;
 
-        this._engine = new Engine(
-            this._renderArea,
-            true
-        );
+        this._engine = new Engine(this._renderArea, true);
         this._scene = new Scene(this._engine);
-
-        // Does this really belong here? Unfortunately with the current architecture this is bound to a level. 
-        this._loadingManager = new LoadingManager(this._scene);
-
-        if (this._configuration?.backgroundColor) {
-            this.setSceneClearColor(this._configuration.backgroundColor);
-        } else {
-            this.setSceneClearColor(Level.defaultBackgroundColor);
-        }
+        this.setSceneClearColor(this._configuration.backgroundColor);
 
         // Is there any good way to error handle this?
         // For PBR materials: 
         let hdrTexture = CubeTexture.CreateFromPrefilteredData("/babylon_assets/environment.env", this._scene);
         hdrTexture.setReflectionTextureMatrix(Matrix.RotationY(0));
         this._scene.environmentTexture = hdrTexture;
-
         this._scene.imageProcessingConfiguration.exposure = 1;
         this._scene.imageProcessingConfiguration.toneMappingEnabled = true;
         this._scene.imageProcessingConfiguration.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES;
 
-        this._materials = new Map();
-
         // Extend later by allowing different kinds of cameras as specified in options. 
-        this._camera = this.setupArcRotateCamera(this._configuration?.cameraTarget ?? Level.defaultCameraTarget);
+        this._camera = this.setupArcRotateCamera(this._configuration.cameraTarget);
+
+        // Does this really belong here? Unfortunately with the current architecture this is bound to a level. 
+        this._loadingManager = new LoadingManager(this._scene);
+        this._materials = new Map();
 
         // That doesn't belong here obviously. 
         var light = new DirectionalLight("light1", new Vector3(0, -1, 0), this._scene);
@@ -84,12 +75,13 @@ export class Level {
         }
         this._loaderTasks = configuration?.loaderTasks || [];
 
+        // ToDo: Rename this. 
         this.autoResize();
         this.runRenderLoop();
     }
 
     // This shold be inside of the actual loading  manager. 
-    private addLoaderTasks(loaderTasks: Array<LoaderTask>) {
+    private addLoaderTasks(loaderTasks: Array<LoaderTask>): void {
         for (let loaderTask of loaderTasks) {
             // Ugly hacky way to distinguish
             if ("url" in loaderTask) {
@@ -110,14 +102,14 @@ export class Level {
             throw assetLoadingException;
         } else {
             this.setupLevelMaterials();
-            if (this._configuration?.createGround) {
+            if (this._configuration.createGround) {
                 this.createGround(8, 1);
             }
         }
     }
 
     private setupLevelMaterials(): void {
-        if (!this._configuration?.materials) {
+        if (!this._configuration.materials) {
             return;
         } else {
             for (let materialConfig of this._configuration.materials) {
@@ -176,10 +168,8 @@ export class Level {
     public setSceneClearColor(color: Color4 | string) {
         if (typeof color == "string") {
             this._scene.clearColor = Color4.FromHexString(color);
-        } else if (color) {
-            this._scene.clearColor = color;
         } else {
-            this._scene.clearColor = Level.defaultBackgroundColor;
+            this._scene.clearColor = color;
         }
     }
 
@@ -198,8 +188,8 @@ export class Level {
         camera.minZ = 0.01;
         camera.maxZ = 100;
 
-        camera.lowerRadiusLimit = this._configuration?.cameraRadiusMin ?? Level.defaultCameraRadiusMin;
-        camera.upperRadiusLimit = this._configuration?.cameraRadiusMax ?? Level.defaultCameraRadiusMax;
+        camera.lowerRadiusLimit = this._configuration.cameraRadiusMin;
+        camera.upperRadiusLimit = this._configuration.cameraRadiusMax;
 
         camera.upperBetaLimit = Math.PI / 2;
 
